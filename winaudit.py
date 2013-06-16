@@ -3,11 +3,13 @@ import xml.etree.ElementTree as ET
 
 def main(argv):
     # Get the file path if no file path is provided
-    folderpath = raw_input('Enter a file name: ').strip() if len(argv) == 1 else argv[1]
+    folderpath = raw_input('Enter a file path: ').strip().replace('\\', '') if len(argv) == 1 else argv[1]
 
     # Open output file
+    if not os.path.exists('output'):
+        os.makedirs('output') # Create an output dir
     epoch           = str(int(time.time()))
-    output_filename = epoch + '_output.txt' # saves the file as the current epoch time + _output.txt
+    output_filename = 'output' + os.sep + epoch + '_output.txt' # saves the file as the current epoch time + _output.txt in the output dir
     output_file     = open(output_filename,'w')
 
     # Recursivly find all .xml files in the path
@@ -55,7 +57,7 @@ def main(argv):
 
         except Exception, e:
             print "ERROR: Can't read from:", filename
-            error_file = open (epoch + '_errors.txt', 'a')
+            error_file = open ('output' + os.sep + epoch + '_errors.txt', 'a')
             error_file.write(filename + '\n')
             error_file.close()
             num_errors += 1
