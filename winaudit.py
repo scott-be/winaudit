@@ -38,7 +38,7 @@ def main(argv):
             
             line += date_created + '\t'
             line += location + '\t'
-            line += computer_type + '\t'
+            line += computer_name + '\t'
             line += computer_type + '\t'
 
             # Print security settings
