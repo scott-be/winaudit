@@ -3,11 +3,12 @@ import xml.etree.ElementTree as ET
 
 def main(argv):
     # Get the file path if no file path is provided
-    folderpath = raw_input('Enter a file path: ').strip().replace('\\', '') if len(argv) == 1 else argv[1]
+    folderpath = raw_input('Enter a file path: ').strip() if len(argv) == 1 else argv[1]
 
     # Open output file
     if not os.path.exists('output'):
         os.makedirs('output') # Create an output dir
+
     epoch           = str(int(time.time()))
     output_filename = 'output' + os.sep + epoch + '_output.txt' # saves the file as the current epoch time + _output.txt in the output dir
     output_file     = open(output_filename,'w')
@@ -21,21 +22,43 @@ def main(argv):
     num_errors = 0
     for filename in winaudit_files:
         try:
-            tree          = ET.parse(filename) # make a tree from the xml file
-            date_created  = time.strftime('%m-%d-%Y', time.localtime(os.path.getctime(filename))) # Print the date the file was created
+            #Make a tree from the xml file
+            tree = ET.parse(filename)
+
+            #Pull the date of scan from the xml file
+            title  = tree.find('./title').text
+            m  = re.search('(\d{1,2}/\d{1,2}/\d{4})', title)
+            if m:
+                date_created = m.group(1)
+            else:
+                date_created = 'Unknown'
+
+            #Pull the computer name
             computer_name = tree.find("./category[@title='System Overview']/subcategory/recordset/datarow[1]/fieldvalue[2]").text
-            computer_type = "Workstation" if computer_name[0] == 'W' else 'Laptop'
-            username      = tree.find("./category[@title='System Overview']/subcategory/recordset/datarow[17]/fieldvalue[2]").text
-            username      = '' if username.upper() == computer_name.upper() else username
-            location      = re.sub(r'^(.*[\\\/])','', filename).replace("_" + computer_name + ".xml", "").replace('_', ' - ')
+
+            #Pull the computer type
+            if computer_name[0].upper() == 'W':
+                computer_type = 'Workstation'
+            elif computer_name[0].upper() == 'L':
+                computer_type = 'Laptop'
+            else:
+                computer_type = 'Unknown'
+
+            #Pull the username (only if the username is different from the computer name)
+            username = tree.find("./category[@title='System Overview']/subcategory/recordset/datarow[17]/fieldvalue[2]").text
+            username = '' if username.upper() == computer_name.upper() else username
+
+            #Pull the location (takes the filename and removes any slashes, the computer name and the .xml extension)
+            location      = re.sub(r'^(.*[\\\/])', '', filename).replace(computer_name,'').replace('.xml','')
             computer_name = computer_name.upper() 
-            line          = '' # Line used to write to file
+            
 
             print date_created + '\t',
             print location + '\t',
             print computer_name + '\t',
             print computer_type + '\t',
             
+            line  = '' # Line used to write to file
             line += date_created + '\t'
             line += location + '\t'
             line += computer_name + '\t'
@@ -55,9 +78,9 @@ def main(argv):
             # Write line to file
             output_file.write(line)
 
-        except Exception, e:
+        except IOError, e:
             print "ERROR: Can't read from:", filename
-            error_file = open ('output' + os.sep + epoch + '_errors.txt', 'a')
+            error_file = open('output' + os.sep + epoch + '_errors.txt', 'a')
             error_file.write(filename + '\n')
             error_file.close()
             num_errors += 1
@@ -67,6 +90,7 @@ def main(argv):
     print '[done]'
     print 'Output file:' + output_filename
     print 'Scanned ' + str(len(winaudit_files)) + ' files with ' + str(num_errors) + ' errors'
+    raw_input('Press any key to exit')
 
 if __name__ == "__main__":
     main(sys.argv) 
