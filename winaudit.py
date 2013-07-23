@@ -12,6 +12,8 @@ def main(argv):
     epoch           = str(int(time.time()))
     output_filename = 'output' + os.sep + epoch + '_output.txt' # saves the file as the current epoch time + _output.txt in the output dir
     output_file     = open(output_filename,'w')
+    print 'Date Scanned\tLocation\tComputer Name\tComputer Type\tAutoLogon Enabled\tScreen Saver Enabled\tScreen Saver Timeout\tScreen Saver Password Protected\tForce Network Logoff\tMinimum Password Length\tMaximum Password Age\tHistorical Passwords\tLockout Threshold\t[skip]\tUsername'
+    output_file.write('Date Scanned\tLocation\tComputer Name\tComputer Type\tAutoLogon Enabled\tScreen Saver Enabled\tScreen Saver Timeout\tScreen Saver Password Protected\tForce Network Logoff\tMinimum Password Length\tMaximum Password Age\tHistorical Passwords\tLockout Threshold\t[skip]\tUsername\n')
 
     # Recursivly find all .xml files in the path
     winaudit_files = [os.path.join(dirpath, f)
@@ -80,6 +82,12 @@ def main(argv):
 
         except IOError, e:
             print "ERROR: Can't read from:", filename
+            error_file = open('output' + os.sep + epoch + '_errors.txt', 'a')
+            error_file.write(filename + '\n')
+            error_file.close()
+            num_errors += 1
+        except Exception, e2:
+            print 'Error: Is the file still encrypted?', e2
             error_file = open('output' + os.sep + epoch + '_errors.txt', 'a')
             error_file.write(filename + '\n')
             error_file.close()
