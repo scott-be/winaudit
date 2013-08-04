@@ -2,92 +2,116 @@ import os, time, sys, re
 import xml.etree.ElementTree as ET
 
 def main(argv):
-    # Get the file path if no file path is provided
-    folderpath = raw_input('Enter a file path: ').strip() if len(argv) == 1 else argv[1]
+    # Get the file path if no file path is provided as a argument
+    folderpath = raw_input('Enter a file path: ').strip().replace('"','') if len(argv) == 1 else argv[1]
 
-    # Open output file
+    # Create output folder if it does not exists...
     if not os.path.exists('output'):
         os.makedirs('output') # Create an output dir
 
+    # Saves the file as the current epoch time + _output.txt in the output dir
     epoch           = str(int(time.time()))
-    output_filename = 'output' + os.sep + epoch + '_output.txt' # saves the file as the current epoch time + _output.txt in the output dir
+    output_filename = 'output' + os.sep + epoch + '_output.txt' 
     output_file     = open(output_filename,'w')
-    print 'Date Scanned\tLocation\tComputer Name\tComputer Type\tAutoLogon Enabled\tScreen Saver Enabled\tScreen Saver Timeout\tScreen Saver Password Protected\tForce Network Logoff\tMinimum Password Length\tMaximum Password Age\tHistorical Passwords\tLockout Threshold\t[skip]\tUsername'
-    output_file.write('Date Scanned\tLocation\tComputer Name\tComputer Type\tAutoLogon Enabled\tScreen Saver Enabled\tScreen Saver Timeout\tScreen Saver Password Protected\tForce Network Logoff\tMinimum Password Length\tMaximum Password Age\tHistorical Passwords\tLockout Threshold\t[skip]\tUsername\n')
+    # Heading
+    output_file.write('Date Scanned\t'+
+                        'Location\t'+
+                        'Computer Name\t'+
+                        'Computer Type\t'+
+                        'AutoLogon Enabled\t'+
+                        'Screen Saver Enabled\t'+
+                        'Screen Saver Timeout\t'+
+                        'Screen Saver Password Protected\t'+
+                        'Force Network Logoff\t'+
+                        'Minimum Password Length\t'+
+                        'Maximum Password Age\t'+
+                        'Historical Passwords\t'+
+                        'Lockout Threshold\t'+
+                        '[skip]\t'+
+                        'Username\t'+
+                        'IP Address\t'+
+                        'DHCP Server\t'+
+                        'MAC Address\n')
 
-    # Recursivly find all .xml files in the path
+    # Recursivly find all .xml files in the file path
     winaudit_files = [os.path.join(dirpath, f)
         for dirpath, dirnames, files in os.walk(folderpath)
         for f in files if f.endswith('.xml')]
 
     # Loop through the files
-    num_errors = 0
+    num_errors = 0 # Variable to keep track of errors
     for filename in winaudit_files:
         try:
-            #Make a tree from the xml file
-            tree = ET.parse(filename)
+                line  = ''
 
-            #Pull the date of scan from the xml file
-            title  = tree.find('./title').text
-            m  = re.search('(\d{1,2}/\d{1,2}/\d{4})', title)
-            if m:
-                date_created = m.group(1)
-            else:
-                date_created = 'Unknown'
+            # Make a tree from the xml file
+                tree = ET.parse(filename)
 
-            #Pull the computer name
-            computer_name = tree.find("./category[@title='System Overview']/subcategory/recordset/datarow[1]/fieldvalue[2]").text
+            # Pull the date of scan from the xml file (via RegEx)
+                title  = tree.find('./title').text
+                m  = re.search('(\d{1,2}/\d{1,2}/\d{4})', title)
+                if m:
+                    date_created = m.group(1)
+                else:
+                    date_created = 'Unknown'
+                line += date_created + '\t'
+            # Pull the computer name
+                computer_name = tree.find("./category[@title='System Overview']/subcategory/recordset/datarow[1]/fieldvalue[2]").text
+                computer_name = computer_name.upper()
 
-            #Pull the computer type
-            if computer_name[0].upper() == 'W':
-                computer_type = 'Workstation'
-            elif computer_name[0].upper() == 'L':
-                computer_type = 'Laptop'
-            else:
-                computer_type = 'Unknown'
+            # Pull the location (takes the filename and removes any slashes, the computer name and the .xml extension)
+                location = re.sub(r'^(.*[\\\/])', '', filename).replace(computer_name,'').replace(computer_name.lower(),'').replace('.xml','')
+                line    += location + '\t'
 
-            #Pull the username (only if the username is different from the computer name)
-            username = tree.find("./category[@title='System Overview']/subcategory/recordset/datarow[17]/fieldvalue[2]").text
-            username = '' if username.upper() == computer_name.upper() else username
+            # Add computer name
+                line += computer_name + '\t'
 
-            #Pull the location (takes the filename and removes any slashes, the computer name and the .xml extension)
-            location      = re.sub(r'^(.*[\\\/])', '', filename).replace(computer_name,'').replace('.xml','')
-            computer_name = computer_name.upper() 
-            
-
-            print date_created + '\t',
-            print location + '\t',
-            print computer_name + '\t',
-            print computer_type + '\t',
-            
-            line  = '' # Line used to write to file
-            line += date_created + '\t'
-            line += location + '\t'
-            line += computer_name + '\t'
-            line += computer_type + '\t'
+            # Determine the computer type
+                if computer_name[0].upper() == 'W':
+                    computer_type = 'Workstation'
+                elif computer_name[0].upper() == 'L':
+                    computer_type = 'Laptop'
+                else:
+                    computer_type = 'Unknown'
+                line += computer_type + '\t'
 
             # Print security settings
-            for child in tree.findall("./category[@title='Security']/subcategory[@title='Security Settings']/recordset/datarow"):
-                if child[0].text in {"AutoLogon", "Screen Saver", "All Accounts"}:
-                    print child[2].text + '\t',
-                    line += child[2].text + '\t'
-            print '\t', # Skip the encryption column
-            print username
+                for child in tree.findall("./category[@title='Security']/subcategory[@title='Security Settings']/recordset/datarow"):
+                    if child[0].text in {"AutoLogon", "Screen Saver", "All Accounts"}:
+                        line += child[2].text + '\t'
 
-            line += '\t'
-            line += username + '\n'
+                line += '\t' # Skip column
+
+            #Pull the username (only if the username is different from the computer name)
+                username = tree.find("./category[@title='System Overview']/subcategory/recordset/datarow[17]/fieldvalue[2]").text
+                username = '' if username.upper() == computer_name.upper() else username    
+                line += username + '\t'
+
+            # Pull IP Address, MAC address, DHCP Server
+                ip_address = tree.find("./category[@title='Network TCP/IP']/subcategory/recordset/datarow[10]/fieldvalue[2]").text
+                dhcp_server = tree.find("./category[@title='Network TCP/IP']/subcategory/recordset/datarow[9]/fieldvalue[2]").text
+                mac_address = tree.find("./category[@title='Network TCP/IP']/subcategory/recordset/datarow[16]/fieldvalue[2]").text
+
+                line += ip_address + '\t'
+                line += dhcp_server + '\t'
+                if mac_address: # look to see if a MAC was found
+                    line += mac_address + '\n'
+                else:
+                    line += 'Unknown\n'
+
+                print '[Done] - ', computer_name
 
             # Write line to file
-            output_file.write(line)
+                output_file.write(line)
 
         except IOError, e:
-            print "ERROR: Can't read from:", filename
+            print "ERROR: Can't read from:", os.path.basename(filename)
             error_file = open('output' + os.sep + epoch + '_errors.txt', 'a')
             error_file.write(filename + '\n')
             error_file.close()
             num_errors += 1
         except Exception, e2:
-            print 'Error: Is the file still encrypted?', e2
+            print 'Error: "',os.path.basename(filename), '"" -- ', e2
             error_file = open('output' + os.sep + epoch + '_errors.txt', 'a')
             error_file.write(filename + '\n')
             error_file.close()
@@ -95,7 +119,7 @@ def main(argv):
 
     output_file.close()
     print '==================='
-    print '[done]'
+    print '[Complete]'
     print 'Output file:' + output_filename
     print 'Scanned ' + str(len(winaudit_files)) + ' files with ' + str(num_errors) + ' errors'
     raw_input('Press any key to exit')
