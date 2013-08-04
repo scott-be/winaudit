@@ -3,7 +3,7 @@ import xml.etree.ElementTree as ET
 
 def main(argv):
     # Get the file path if no file path is provided as a argument
-    folderpath = raw_input('Enter a file path: ').strip() if len(argv) == 1 else argv[1]
+    folderpath = raw_input('Enter a file path: ').strip().replace('"','') if len(argv) == 1 else argv[1]
 
     # Create output folder if it does not exists...
     if not os.path.exists('output'):
@@ -29,8 +29,8 @@ def main(argv):
                         'Lockout Threshold\t'+
                         '[skip]\t'+
                         'Username\t'+
-                        'DHCP Server\t'+
                         'IP Address\t'+
+                        'DHCP Server\t'+
                         'MAC Address\n')
 
     # Recursivly find all .xml files in the file path
@@ -88,12 +88,16 @@ def main(argv):
                 line += username + '\t'
 
             # Pull IP Address, MAC address, DHCP Server
-                dhcp_server = tree.find("./category[@title='Network TCP/IP']/subcategory/recordset/datarow[9]/fieldvalue[2]").text
                 ip_address = tree.find("./category[@title='Network TCP/IP']/subcategory/recordset/datarow[10]/fieldvalue[2]").text
+                dhcp_server = tree.find("./category[@title='Network TCP/IP']/subcategory/recordset/datarow[9]/fieldvalue[2]").text
                 mac_address = tree.find("./category[@title='Network TCP/IP']/subcategory/recordset/datarow[16]/fieldvalue[2]").text
-                line += dhcp_server + '\t'
+
                 line += ip_address + '\t'
-                line += mac_address + '\n'
+                line += dhcp_server + '\t'
+                if mac_address: # look to see if a MAC was found
+                    line += mac_address + '\n'
+                else:
+                    line += 'Unknown\n'
 
                 print '[Done] - ', computer_name
 
@@ -101,13 +105,13 @@ def main(argv):
                 output_file.write(line)
 
         except IOError, e:
-            print "ERROR: Can't read from:", filename
+            print "ERROR: Can't read from:", os.path.basename(filename)
             error_file = open('output' + os.sep + epoch + '_errors.txt', 'a')
             error_file.write(filename + '\n')
             error_file.close()
             num_errors += 1
         except Exception, e2:
-            print 'Error: Is the file still encrypted?', e2
+            print 'Error: "',os.path.basename(filename), '"" -- ', e2
             error_file = open('output' + os.sep + epoch + '_errors.txt', 'a')
             error_file.write(filename + '\n')
             error_file.close()
