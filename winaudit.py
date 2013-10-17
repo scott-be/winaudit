@@ -29,6 +29,7 @@ def main(argv):
                         'Lockout Threshold\t'+
                         '[skip]\t'+
                         'Username\t'+
+                        'Interface Name\t'+
                         'IP Address\t'+
                         'DHCP Server\t'+
                         'MAC Address\n')
@@ -87,17 +88,30 @@ def main(argv):
                 username = '' if username.upper() == computer_name.upper() else username    
                 line += username + '\t'
 
-            # Pull IP Address, MAC address, DHCP Server
-                ip_address = tree.find("./category[@title='Network TCP/IP']/subcategory/recordset/datarow[10]/fieldvalue[2]").text
-                dhcp_server = tree.find("./category[@title='Network TCP/IP']/subcategory/recordset/datarow[9]/fieldvalue[2]").text
-                mac_address = tree.find("./category[@title='Network TCP/IP']/subcategory/recordset/datarow[16]/fieldvalue[2]").text
+            # Pull IP Address, MAC address, DHCP Server from all network interfaces
 
-                line += ip_address + '\t'
-                line += dhcp_server + '\t'
-                if mac_address: # look to see if a MAC was found
-                    line += mac_address + '\n'
-                else:
-                    line += 'Unknown\n'
+                interfaces = tree.find("./category[@title='Network TCP/IP']").getchildren()
+                for i, interface in enumerate(interfaces):
+
+                    interface_name = interface.get('title')
+                    ip_address = interface.find('recordset/datarow[10]/fieldvalue[2]').text
+                    dhcp_server = interface.find('recordset/datarow[9]/fieldvalue[2]').text
+                    mac_address = interface.find('recordset/datarow[16]/fieldvalue[2]').text
+
+                    if ip_address == None:   # look to see if the IP address was found
+                        ip_address = "None"
+                    if dhcp_server == None:  # look to see if DHCP Server was found
+                        dhcp_server = "None"
+                    if mac_address == None:  # look to see if a MAC was found
+                        mac_address = "None"
+
+                    line += interface_name + '\t'
+                    line += ip_address + '\t'
+                    line += dhcp_server + '\t'
+                    line += mac_address + '\t'
+
+                    if i == len(interfaces)-1: # Look to see if its the last interface and insert a newline
+                        line += '\n'
 
                 print '[Done] - ', computer_name
 
@@ -120,7 +134,7 @@ def main(argv):
     output_file.close()
     print '==================='
     print '[Complete]'
-    print 'Output file:' + output_filename
+    print 'Output file: ' + output_filename
     print 'Scanned ' + str(len(winaudit_files)) + ' files with ' + str(num_errors) + ' errors'
     raw_input('Press any key to exit')
 
