@@ -29,7 +29,7 @@ def main(argv):
                         'Lockout Threshold\t'+
                         '[skip]\t'+
                         'Username\t'+
-                        'Interface Name\t'+
+                        'Interface Name(s)\t'+
                         'IP Address\t'+
                         'DHCP Server\t'+
                         'MAC Address\n')
